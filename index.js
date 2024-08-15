@@ -20,7 +20,6 @@ var debug = require('debug')('express-session');
 var deprecate = require('depd')('express-session');
 var onHeaders = require('on-headers')
 var parseUrl = require('parseurl');
-var signature = require('cookie-signature')
 var uid = require('uid-safe').sync
 
 var Cookie = require('./session/cookie')
@@ -64,7 +63,7 @@ var warning = 'Warning: connect.session() MemoryStore is not\n'
 /* istanbul ignore next */
 var defer = typeof setImmediate === 'function'
   ? setImmediate
-  : function(fn){ process.nextTick(fn.bind.apply(fn, arguments)) }
+  : function (fn) { process.nextTick(fn.bind.apply(fn, arguments)) }
 
 /**
  * Setup session store with the given `options`.
@@ -155,7 +154,7 @@ function session(options) {
   }
 
   // generates the new session
-  store.generate = function(req){
+  store.generate = function (req) {
     req.sessionID = generateId(req);
     req.session = new Session(req);
     req.session.cookie = new Cookie(cookieOptions);
@@ -221,7 +220,7 @@ function session(options) {
     var cookieId = req.sessionID = getcookie(req, name, secrets);
 
     // set-cookie
-    onHeaders(res, function(){
+    onHeaders(res, function () {
       if (!req.session) {
         debug('no session');
         return;
@@ -376,7 +375,7 @@ function session(options) {
     }
 
     // inflate the session
-    function inflate (req, sess) {
+    function inflate(req, sess) {
       store.createSession(req, sess)
       originalId = req.sessionID
       originalHash = hash(sess)
@@ -388,7 +387,7 @@ function session(options) {
       wrapmethods(req.session)
     }
 
-    function rewrapmethods (sess, callback) {
+    function rewrapmethods(sess, callback) {
       return function () {
         if (req.session !== sess) {
           wrapmethods(req.session)
@@ -490,7 +489,7 @@ function session(options) {
 
     // generate the session object
     debug('fetching %s', req.sessionID);
-    store.get(req.sessionID, function(err, sess){
+    store.get(req.sessionID, function (err, sess) {
       // error handling
       if (err && err.code !== 'ENOENT') {
         debug('error %j', err);
@@ -546,16 +545,7 @@ function getcookie(req, name, secrets) {
     raw = cookies[name];
 
     if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
-      }
+      val = raw;
     }
   }
 
@@ -573,20 +563,7 @@ function getcookie(req, name, secrets) {
     raw = req.cookies[name];
 
     if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
-
-        if (val) {
-          deprecate('cookie should be available in req.headers.cookie');
-        }
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
-      }
+      val = raw;
     }
   }
 
@@ -661,8 +638,7 @@ function issecure(req, trustProxy) {
  */
 
 function setcookie(res, name, val, secret, options) {
-  var signed = 's:' + signature.sign(val, secret);
-  var data = cookie.serialize(name, signed, options);
+  var data = cookie.serialize(name, val, options);
 
   debug('set-cookie %s', data);
 
@@ -670,24 +646,4 @@ function setcookie(res, name, val, secret, options) {
   var header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
 
   res.setHeader('Set-Cookie', header)
-}
-
-/**
- * Verify and decode the given `val` with `secrets`.
- *
- * @param {String} val
- * @param {Array} secrets
- * @returns {String|Boolean}
- * @private
- */
-function unsigncookie(val, secrets) {
-  for (var i = 0; i < secrets.length; i++) {
-    var result = signature.unsign(val, secrets[i]);
-
-    if (result !== false) {
-      return result;
-    }
-  }
-
-  return false;
 }
